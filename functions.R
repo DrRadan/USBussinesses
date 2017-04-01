@@ -1,7 +1,6 @@
 Broom<-function(table, n_naics=0, year=2014){
   
-  # This function takes in a dataframe containing annual data from the Bussiness census database that have been already locally 
-  # downloaded, extracts bussiness information at the desired granularity (NAICS code levels: all naics codes, 3-,4-,5-,and 6-digit information).
+  # This function takes in a dataframe containing annual data from the Bussiness census database that have been already downloaded.
   # Arguments are:
   # table is a dataframe representing data from one year
   # n_naics : the  numebr of naics digits to include in the output. Possible values are 0, 3, 4, 5, 6 (0 = for all sectors)
@@ -43,13 +42,13 @@ Broom<-function(table, n_naics=0, year=2014){
   zip <- left_join(zip, naics, by='naics')
   zip <- zip[,c(1,2,13,3:12)]
   
-  data(zipcode) #produces data.frame named zipcode that links zipcodes to cities and city geo coordinates
-  zip <-left_join(zip,zipcode, by='zip')
-  zip <- zip[,c(1,14:17,2:13)]
+  uspc <- tbl_df(read.csv("~/Datasets/AuxiliaryVarious/US_postal_codes.csv"))
+  uspc <- uspc[,c(1,3,4:7)]
+  colnames(uspc)<- c("zip","state_name", "state","county", "latitude", "longitude")
+  uspc$zip<-clean.zipcodes(uspc$zip)
   
-  zdb <- tbl_df(read.csv("~/Datasets/AuxiliaryVarious/zip_code_database.csv", comment.char="#"))
-  zdb$zip<-clean.zipcodes(zdb$zip)
-  zdb <- zdb[,c(1, 8)]
-  zip<- left_join(zip, zdb, by='zip')
-  return(zip[,c(1:3,18,4:17)])
-  }
+  zip<- left_join(zip, uspc, by='zip')
+  zip <- zip[,c(1,14:18,2:13)]
+  zip <- cbind(zip,polynames=as.factor(paste(tolower(zip$state_name), ",", tolower(zip$county),sep="")))
+  zip <- zip[,c(1:4,19,5:18)]
+}
