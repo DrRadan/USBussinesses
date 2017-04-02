@@ -1,4 +1,4 @@
-Broom<-function(table, n_naics=0, year=2014){
+cBroom<-function(table, n_naics=0, year){
   
   # This function takes in a dataframe containing annual data from the Bussiness census database that have been already downloaded.
   # Arguments are:
@@ -7,9 +7,10 @@ Broom<-function(table, n_naics=0, year=2014){
   # year : the year the dataframe refers to. Is usefull in order to define the naics fields accuratelly (they have occesional changes)
   
   library(dplyr)
-  library(zipcode)
+  co <- tbl_df(table)
+  colnames(co) <- tolower(colnames(co))
   
-  zip <- tbl_df(table)
+  # 1.  As a first step, reduce size of the table by subsetting observations by the desired naics code level via n_naics
   if (n_naics==0) {
     querry <- "------"
     print("Calculating data for all bussinesses.")
@@ -20,35 +21,61 @@ Broom<-function(table, n_naics=0, year=2014){
     querry <- paste(querry1, querry2, sep="")
     print(paste("Calculating data for ",as.character(n_naics),"-digit bussiness codes.", sep=""))
   }else{
-    print("You made a big mistake! I cannot process what you ask!!!!")
-    break()
+    print("Please set an acceptable value for n_naics. Acceptable values are: 0 (default), 3, 4, 5, and 6.
+          aborting")
+    exit()
   }
-  zip <- filter(zip, grepl(querry,zip$naics))
+  co <- filter(co, grepl(querry,co$naics))
   
-  zip$zip <- clean.zipcodes(zip$zip)
-  
-  if (year<=2014 && year>=2012) {
-    file="~/Datasets/Census_Bussiness_bureau/NorthAmericanIndustryClassificationSystemDescriptions_2012_14.txt"
-  }else if (year<=2011 && year>=2008){
-    file="~/Datasets/Census_Bussiness_bureau/NorthAmericanIndustryClassificationSystemDescriptions_2008_11.txt"
-  } else if (year<=2007 && year>=2003){
-    "~/Datasets/Census_Bussiness_bureau/NorthAmericanIndustryClassificationSystemDescriptions_2003_07.txt"
-  } else if (year<=2002 && year>=1998){
-    file = "~/Datasets/Census_Bussiness_bureau/NorthAmericanIndustryClassificationSystemDescriptions_1998_2007.txt"
-  }
+  # 2.  Perofm transformations to the table that depend on year-specific reference lookups and formats. See README for more info.
   print(paste("Calculating table for year ", as.character(year)))
-  naics <- tbl_df(read.csv(file))
-  colnames(naics)<-c("naics","description")
-  zip <- left_join(zip, naics, by='naics')
-  zip <- zip[,c(1,2,13,3:12)]
-  
-  uspc <- tbl_df(read.csv("~/Datasets/AuxiliaryVarious/US_postal_codes.csv"))
-  uspc <- uspc[,c(1,3,4:7)]
-  colnames(uspc)<- c("zip","state_name", "state","county", "latitude", "longitude")
-  uspc$zip<-clean.zipcodes(uspc$zip)
-  
-  zip<- left_join(zip, uspc, by='zip')
-  zip <- zip[,c(1,14:18,2:13)]
-  zip <- cbind(zip,polynames=as.factor(paste(tolower(zip$state_name), ",", tolower(zip$county),sep="")))
-  zip <- zip[,c(1:4,19,5:18)]
+  if (year<=2014 & year>=2012) {
+    naics <- tbl_df(read.csv("~/Datasets/Census_Bussiness_bureau/NorthAmericanIndustryClassificationSystemDescriptions_2012_14.txt"))
+    colnames(naics)<-tolower(colnames(naics))
+    co <- left_join(co, naics, by='naics')
+    geo <- tbl_df(read.csv("~/Datasets/Census_Bussiness_bureau/geo_reference_2012_14.txt"))
+    co <- left_join(co, geo, by=c('fipstate','fipscty'))
+    co <- co[,c(1,2,28,27,25,26,3,11:24)]
+  }else if (year<=2011 & year>=2008){
+    naics <- tbl_df(read.csv("~/Datasets/Census_Bussiness_bureau/NorthAmericanIndustryClassificationSystemDescriptions_2008_11.csv", sep="."))
+    colnames(naics)<-tolower(colnames(naics))
+    levels(co$naics) <- levels(naics$naics)
+    co <- left_join(co, naics, by='naics')
+    geo <- tbl_df(read.csv("~/Datasets/Census_Bussiness_bureau/geo_reference_2002_11.txt"))
+    co <- left_join(co, geo, by=c('fipstate','fipscty'))
+    co <- co[,c(1,2,28,27,25,26,3,11:24)]
+  } else if (year==2007){
+    naics <- tbl_df(read.csv("~/Datasets/Census_Bussiness_bureau/NorthAmericanIndustryClassificationSystemDescriptions_2003_07.txt", sep="."))
+    colnames(naics)<-tolower(colnames(naics))
+    levels(co$naics) <- levels(naics$naics)
+    co <- left_join(co, naics, by='naics')
+    geo <- tbl_df(read.csv("~/Datasets/Census_Bussiness_bureau/geo_reference_2002_11.txt"))
+    co <- left_join(co, geo, by=c('fipstate','fipscty'))
+    co <- co[,c(1,2,28, 27, 25,26,3,11:24)]
+  } else if (year<=2006 & year>=2003){
+    naics <- tbl_df(read.csv("~/Datasets/Census_Bussiness_bureau/NorthAmericanIndustryClassificationSystemDescriptions_2003_07.txt", sep="."))
+    colnames(naics)<-tolower(colnames(naics))
+    levels(co$naics) <- levels(naics$naics)
+    co <- left_join(co, naics, by='naics')
+    geo <- tbl_df(read.csv("~/Datasets/Census_Bussiness_bureau/geo_reference_2002_11.txt"))
+    co <- left_join(co, geo, by=c('fipstate','fipscty'))
+    co <- co[,c(1,2,25,24,22,23,3,8:21)]
+  } else if (year==2002){
+    naics <- tbl_df(read.csv("~/Datasets/Census_Bussiness_bureau/NorthAmericanIndustryClassificationSystemDescriptions_1998_02.txt", sep="."))
+    colnames(naics)<-tolower(colnames(naics))
+    levels(co$naics) <- levels(naics$naics)
+    co <- left_join(co, naics, by='naics')
+    geo <- tbl_df(read.csv("~/Datasets/Census_Bussiness_bureau/geo_reference_2002_11.txt"))
+    co <- left_join(co, geo, by=c('fipstate','fipscty'))
+    co <- co[,c(1,2,25,24,22,23,3,8:21)]
+  }
+  else if (year<=2001 & year>=1998){
+    naics <- tbl_df(read.csv("~/Datasets/Census_Bussiness_bureau/NorthAmericanIndustryClassificationSystemDescriptions_1998_02.txt", sep="."))
+    colnames(naics)<-tolower(colnames(naics))
+    co <- left_join(co, naics, by='naics')
+    geo <- tbl_df(read.csv("~/Datasets/Census_Bussiness_bureau/geo_reference_1996_01.txt"))
+    co <- left_join(co, geo, by=c('fipstate','fipscty'))
+    co <- co[,c(1,2,25,24,22,23,3,8:21)]
+  } else {exit()}
+  return(co)
 }
